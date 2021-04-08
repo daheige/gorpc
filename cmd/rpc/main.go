@@ -1,39 +1,65 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/daheige/gmicro"
-	"github.com/daheige/gorpc/api/clients/go/pb"
-	"github.com/daheige/gorpc/internal/services"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
+
+	"github.com/daheige/gorpc/api/clients/go/pb"
+	"github.com/daheige/gorpc/config"
+	"github.com/daheige/gorpc/internal/interceptor"
+	"github.com/daheige/gorpc/internal/services"
+	"github.com/daheige/tigago/gpprof"
+	"github.com/daheige/tigago/logger"
+	"github.com/daheige/tigago/monitor"
 )
 
-var sharePort int
-var shutdownFunc func()
+var (
+	configDir string
+)
 
 func init() {
-	sharePort = 8081
+	flag.StringVar(&configDir, "config_dir", "./", "config dir")
+	flag.Parse()
 
-	shutdownFunc = func() {
-		fmt.Println("Server shutting down")
+	// init config.
+	err := config.InitConfig(configDir)
+	if err != nil {
+		log.Fatalf("init config err: %v", err)
 	}
+
+	// 日志文件设置
+	if config.AppServerConf.LogDir == "" {
+		config.AppServerConf.LogDir = "./logs"
+	}
+
+	// 添加prometheus性能监控指标
+	prometheus.MustRegister(monitor.CpuTemp)
+	prometheus.MustRegister(monitor.HdFailures)
+
+	// 性能监控的端口port+1000,只能在内网访问
+	httpMux := gpprof.New()
+
+	// 添加prometheus metrics处理器
+	httpMux.Handle("/metrics", promhttp.Handler())
+	gpprof.Run(httpMux, config.AppServerConf.PProfPort)
 }
 
-// http://localhost:8081/v1/say/1
-/**
-% go run services.go
-2021/02/26 22:58:52 Starting http services and grpc services listening on 8081
-2021/02/26 22:59:17 exec begin
-2021/02/26 22:59:17 client_ip: 127.0.0.1
-2021/02/26 22:59:17 req data:  id:1
-2021/02/26 22:59:17 exec end,cost time: 0 ms
-*/
-
 func main() {
+	defer config.CloseAllDatabase()
+
+	log.Println("rpc start...")
+	log.Println("server pid: ", os.Getppid())
+
 	// add the /test endpoint
 	route := gmicro.Route{
 		Method:  "GET",
@@ -48,14 +74,16 @@ func main() {
 		gmicro.WithRouteOpt(route),
 		gmicro.WithShutdownFunc(shutdownFunc),
 		gmicro.WithPreShutdownDelay(2*time.Second),
-		gmicro.WithShutdownTimeout(6*time.Second),
+		gmicro.WithShutdownTimeout(5*time.Second),
 		gmicro.WithHandlerFromEndpoint(pb.RegisterGreeterServiceHandlerFromEndpoint),
 		gmicro.WithLogger(gmicro.LoggerFunc(log.Printf)),
-		gmicro.WithRequestAccess(true),
+		// gmicro.WithLogger(gmicro.LoggerFunc(gRPCPrintf)), // 定义grpc logger printf
+		// gmicro.WithRequestAccess(true),
 		gmicro.WithPrometheus(true),
 		gmicro.WithGRPCServerOption(grpc.ConnectionTimeout(10*time.Second)),
-		gmicro.WithGRPCNetwork("tcp"), // grpc services start network
-		gmicro.WithStaticAccess(true), // enable static file access,if use http gw
+		gmicro.WithUnaryInterceptor(interceptor.AccessLog), // 自定义访问日志记录
+		gmicro.WithGRPCNetwork("tcp"),
+		gmicro.WithHTTPHandler(interceptor.GatewayAccessLog), // gateway请求日志记录
 	)
 
 	// register grpc service
@@ -73,24 +101,18 @@ func main() {
 
 	s.AddRoute(newRoute)
 
-	newRoute2 := gmicro.Route{
-		Method:  "GET",
-		Pattern: gmicro.PathPattern("info"),
-		Handler: func(w http.ResponseWriter, r *http.Request, pathParams map[string]string) {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
-		},
-	}
+	// log.Fatalln(s.StartGRPCAndHTTPServer(config.AppServerConf.GRPCPort))
 
-	s.AddRoute(newRoute2)
+	// run grpc and http gateway
+	log.Fatalln(s.Start(config.AppServerConf.HttpPort, config.AppServerConf.GRPCPort))
+}
 
-	// you can start grpc services and http gateway on one port
-	log.Fatalln(s.StartGRPCAndHTTPServer(sharePort))
+func shutdownFunc() {
+	log.Println("server will shutdown")
+	logger.Info(context.Background(), "server will shutdown", nil)
+}
 
-	// you can also specify ports for grpc and http gw separately
-	// log.Fatalln(s.Start(sharePort, 50051))
-
-	// you can start services without http gateway
-	// log.Fatalln(s.StartGRPCWithoutGateway(50051))
+// gmicro logger printf打印日志函数
+func gRPCPrintf(format string, v ...interface{}) {
+	logger.Info(context.Background(), fmt.Sprintf(format, v...), nil)
 }

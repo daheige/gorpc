@@ -7,6 +7,17 @@
     
     github.com/daheige/gmicro
 
-# goapp实战
+# 运行
+    
+    代码生成
+    sh bin/go-generate.sh
 
-    github.com/daheige/goapp
+    获取go package
+    go mod tidy    
+    go run cmd/rpc/main.go
+
+    浏览器访问： http://localhost:1338/v1/say/23
+    pprof: http://localhost:2358/debug/pprof/
+    metrics: http://localhost:2358/metrics
+    
+    db,redis使用参考： github.com/daheige/goapp
