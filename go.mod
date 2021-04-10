@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/daheige/gmicro v1.2.4
-	github.com/daheige/tigago v1.1.14
+	github.com/daheige/tigago v1.2.0
 	github.com/go-playground/validator/v10 v10.5.0
 	github.com/golang/protobuf v1.5.2
 	github.com/gomodule/redigo v1.8.4
