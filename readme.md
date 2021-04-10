@@ -21,3 +21,7 @@
     metrics: http://localhost:2358/metrics
     
     db,redis使用参考： github.com/daheige/goapp
+
+# layout参考
+    
+    https://github.com/golang-standards/project-layout
