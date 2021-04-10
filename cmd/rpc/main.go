@@ -83,7 +83,6 @@ func main() {
 		gmicro.WithGRPCServerOption(grpc.ConnectionTimeout(10*time.Second)),
 		gmicro.WithUnaryInterceptor(interceptor.AccessLog), // 自定义访问日志记录
 		gmicro.WithGRPCNetwork("tcp"),
-		gmicro.WithHTTPHandler(interceptor.GatewayAccessLog), // gateway请求日志记录
 	)
 
 	// register grpc service
