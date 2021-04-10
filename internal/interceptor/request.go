@@ -2,6 +2,7 @@ package interceptor
 
 import (
 	"context"
+	"fmt"
 	"runtime/debug"
 	"time"
 
@@ -20,10 +21,10 @@ func AccessLog(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
 		if r := recover(); r != nil {
 			// the error format defined by grpc must be used here to return code, desc
 			err = status.Errorf(codes.Internal, "%s", "server inner error")
-
 			logger.Info(ctx, "exec panic", map[string]interface{}{
-				"reply":      res,
-				"full_stack": string(debug.Stack()),
+				"reply":       res,
+				"trace_error": fmt.Sprintf("%v", r),
+				"full_stack":  string(debug.Stack()),
 			})
 		}
 	}()
