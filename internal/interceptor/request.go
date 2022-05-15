@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/daheige/gmicro"
-	"github.com/daheige/gorpc/internal/pkg/ckeys"
+	"github.com/daheige/gorpc/internal/infras/ckeys"
 	"github.com/daheige/tigago/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

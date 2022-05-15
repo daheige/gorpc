@@ -10,17 +10,16 @@ import (
 	"time"
 
 	"github.com/daheige/gmicro"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc"
-
 	"github.com/daheige/gorpc/api/clients/go/pb"
-	"github.com/daheige/gorpc/config"
+	"github.com/daheige/gorpc/internal/config"
 	"github.com/daheige/gorpc/internal/interceptor"
 	"github.com/daheige/gorpc/internal/services"
 	"github.com/daheige/tigago/gpprof"
 	"github.com/daheige/tigago/logger"
 	"github.com/daheige/tigago/monitor"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
 )
 
 var (
